@@ -13,71 +13,46 @@ import java.util.*;
 public class Converter {
     public static void csvToXml(String pathToCsvFile, String pathToXmlFile) {
         try {
-            File csvFile = new File(pathToCsvFile); // Replace with the path to your CSV file
+            File csvFile = new File(pathToCsvFile);
             BufferedReader reader = new BufferedReader(new FileReader(csvFile));
 
-            Map<String, String> keyValuePairs = new LinkedHashMap<>();
-            Map<String, Map<String, String>> pluralsMap = new LinkedHashMap<>();
-            Map<String, List<String>> stringArraysMap = new LinkedHashMap<>();
+            File xmlFile = new File(pathToXmlFile);
+            BufferedWriter writer = new BufferedWriter(new FileWriter(xmlFile));
+
+            writer.write("<?xml version=\"1.0\" encoding=\"utf-8\"?>\n");
+            writer.write("<resources>\n");
 
             String line;
             while ((line = reader.readLine()) != null) {
-                // Split the line into key and value
-                String[] parts = line.split(",");
-                if (parts.length == 2) {
-                    String key = parts[0].trim();
-                    String value = parts[1].trim();
+                int firstCommaIndex = line.indexOf(",");
+                if (firstCommaIndex != -1) {
+                    String key = line.substring(0, firstCommaIndex).trim();
+                    String value = line.substring(firstCommaIndex + 1).trim();
 
                     if (key.endsWith("_plural")) {
                         String baseKey = key.replace("_plural", "");
-                        pluralsMap.computeIfAbsent(baseKey, k -> new LinkedHashMap<>()).put(key, value);
+                        writer.write("    <plurals name=\"" + baseKey + "\">\n");
+                        writer.write("        <item quantity=\"other\">" + value + "</item>\n");
+                        writer.write("    </plurals>\n");
                     } else if (key.endsWith("_string-array")) {
                         String baseKey = key.replace("_string-array", "");
-                        stringArraysMap.computeIfAbsent(baseKey, k -> new ArrayList<>()).add(value);
+                        writer.write("    <string-array name=\"" + baseKey + "\">\n");
+                        String[] arrayValues = value.split(",");
+                        for (String arrayValue : arrayValues) {
+                            writer.write("        <item>" + arrayValue + "</item>\n");
+                        }
+                        writer.write("    </string-array>\n");
                     } else {
-                        keyValuePairs.put(key, value);
+                        writer.write("    <string name=\"" + key + "\">" + value + "</string>\n");
                     }
                 }
             }
 
-            // Define the output XML file path
-            File xmlFile = new File(pathToXmlFile);
+            writer.write("</resources>\n");
 
-            // Write the XML header and opening <resources> tag
-            try (BufferedWriter writer = new BufferedWriter(new FileWriter(xmlFile))) {
-                writer.write("<?xml version=\"1.0\" encoding=\"utf-8\"?>\n");
-                writer.write("<resources>\n");
-
-                // Write the key-value pairs as <string> elements
-                for (Map.Entry<String, String> entry : keyValuePairs.entrySet()) {
-                    writer.write("    <string name=\"" + entry.getKey() + "\">" + entry.getValue() + "</string>\n");
-                }
-
-                // Write plurals
-                for (Map.Entry<String, Map<String, String>> pluralsEntry : pluralsMap.entrySet()) {
-                    writer.write("    <plurals name=\"" + pluralsEntry.getKey() + "\">\n");
-                    Map<String, String> pluralValues = pluralsEntry.getValue();
-                    for (Map.Entry<String, String> pluralValue : pluralValues.entrySet()) {
-                        writer.write("        <item quantity=\"" + pluralValue.getKey() + "\">" + pluralValue.getValue() + "</item>\n");
-                    }
-                    writer.write("    </plurals>\n");
-                }
-
-                // Write string arrays
-                for (Map.Entry<String, List<String>> arrayEntry : stringArraysMap.entrySet()) {
-                    writer.write("    <string-array name=\"" + arrayEntry.getKey() + "\">\n");
-                    List<String> arrayValues = arrayEntry.getValue();
-                    for (String arrayValue : arrayValues) {
-                        writer.write("        <item>" + arrayValue + "</item>\n");
-                    }
-                    writer.write("    </string-array>\n");
-                }
-
-                // Close the <resources> tag
-                writer.write("</resources>\n");
-            }
-
-            System.out.println("XML file generated: " + xmlFile.getAbsolutePath());
+            reader.close();
+            writer.close();
+            System.out.println("XML file generated: " + pathToXmlFile);
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -142,7 +117,7 @@ public class Converter {
             // Write the key-value pairs to the output file
             try (BufferedWriter writer = new BufferedWriter(new FileWriter(outputFile))) {
                 for (Map.Entry<String, String> entry : keyValuePair.entrySet()) {
-                    writer.write(entry.getKey() + "==>" + entry.getValue() + "\n");
+                    writer.write(entry.getKey() + "," + entry.getValue() + "\n");
                 }
             }
             System.out.println("CSV written to " + outputFile.getAbsolutePath());
